@@ -120,6 +120,7 @@ def date_ended_since(query, since):
 
 date_ended_order = lambda data, o: data.order_by(o if o else '-ended')
 date_ended_getter = lambda obj, **kws: obj.ended if obj.ended else '-'
+highest_id_order = lambda data, o: data.order_by('-id')
 
 def _parse_content_ids(id_str):
     ct_id, obj_id = map(int, id_str.split('_'))
@@ -146,11 +147,11 @@ class executors(BaseReport):
     get_all = lambda: Executor.objects.all()
     
     since_filter = date_ended_since
-    order_by = date_ended_order
+    order_by = highest_id_order
     
     details = {
         'instances': lambda id, since=None, status=None, **kws:
-            executors.get(id).instances.since(since).status_in(status),
+            executors.get(id).instances.since(since).status_in(status).order_by('-started'),
     }
     headers = ['ID', 'Queue', 'Queue Type', 'Host', 'PID', 'Running',
         'Succeeded', 'Failed', 'Started', 'Ended', 'Status']
@@ -237,7 +238,7 @@ class instances(BaseReport):
     get_all = lambda: MultiQuerySet(*[i.objects.all()
         for i in INSTANCE_MODELS])
     since_filter = date_ended_since
-    order_by = date_ended_order
+    order_by = lambda data, o: data.order_by(o if o else '-started')
     
     headers = ['ID#', 'Type', 'Source', 'Started', 'Ended', 'Status']
     data = {

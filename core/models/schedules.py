@@ -317,12 +317,44 @@ class CronSchedule(AbstractSchedule):
         if not self._next:
             self._next = self.calculate_next()
         return self._next
-    
+
+    # handle encoding like o6,12d1w*h1m1s1 for running
+    # a task in June and December. day, hour, minute, and second
+    # must be included in the encoding.
+    def _next_absolute_month(self, dt=None):
+        month_found = False
+        for i in self.months:
+            if i > dt.month:
+                month_found = True
+            elif i == dt.month:
+                if dt < datetime(dt.year, i, self.days[0], self.hours[0], self.minutes[0]):
+                    month_found = True
+
+            if month_found == True:
+                dt = dt.replace(month = i)
+                break
+
+        if not month_found:
+            dt = dt.replace(month = self.months[0])
+            dt = dt.replace(year = dt.year + 1)
+
+        dt = dt.replace(microsecond=0)
+        dt = dt.replace(second=0)
+        dt = dt.replace(minute=self.minutes[0])
+        dt = dt.replace(hour=self.hours[0])
+        dt = dt.replace(day=self.days[0])
+        return dt
+
+
+
     def calculate_next(self, dt=None):
         if not hasattr(self, "months"):
             self.set_lists()
         if not dt:
             dt = self.base
+        # special case for a encoding like o6,12d1w*h1m1s1
+        if len(self.months) > 1 and len(self.months) < 12:
+            return self._next_absolute_month(dt)
         dt = dt.replace(microsecond=0)
         dt += timedelta(seconds=1)
         second = self.find_gte(dt.second, self.seconds)
